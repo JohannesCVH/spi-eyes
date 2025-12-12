@@ -10,7 +10,7 @@ internal class Program
 
         builder.Services.AddCors(options =>
         {
-           options.AddPolicy(name: "AllowAllOrigins", policy =>
+           options.AddPolicy(name: "AllowAll", policy =>
            {
                 policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
            });
@@ -19,10 +19,12 @@ internal class Program
         builder.Configuration.AddJsonFile(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "SpiEyes/config.json"), optional: false, reloadOnChange: true);
         builder.Services.Configure<Config>(builder.Configuration.GetSection("Configuration"));
 
-        builder.Services.AddSingleton<IFFmpegRtspReaderService, FFmpegRtspReaderService>();
+        builder.Services.AddHostedService<FFmpegRtspReaderService>();
 
         var app = builder.Build();
+
         app.MapControllers();
+        app.UseCors("AllowAll");
         app.Run();
     }
 }

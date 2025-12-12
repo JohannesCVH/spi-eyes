@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net.Http.Headers;
 using Microsoft.Extensions.Options;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -7,12 +8,10 @@ using SpiEyes.Models;
 
 namespace SpiEyes.Services;
 
-public class FFmpegRtspReaderService : IFFmpegRtspReaderService, IDisposable
+public class FFmpegRtspReaderService : IHostedService
 {
     private readonly Config _config;
-    private Process _ffmpegProcess;
-    public Stream OutputStream;
-    private bool _running;
+    public List<Camera> Cameras { get; set; }
 
     private static bool LOG_FRAMES = false;
     
@@ -21,60 +20,60 @@ public class FFmpegRtspReaderService : IFFmpegRtspReaderService, IDisposable
         _config = configOptions.Value;
     }
 
-    public async Task StartAsync()
+    public async Task StartAsync(CancellationToken cancellationToken)
     {
-        if (_running) return;
-
+        Cameras = new List<Camera>();
+        
         var startInfo = new ProcessStartInfo
         {
             FileName = "ffmpeg",
             Arguments =
-                $"-i \"{_config.Cameras[0].URL}\" -c:v libvpx -b:v 1M -f webm -",
+                // $"-i \"{_config.Cameras[0].URL}\" -c:v h264 -c:a aac -hls_time 4 -hls_segment_filename /home/johannescvh/SpiEyes/Streams/Segments/segment_%d.ts /home/johannescvh/SpiEyes/Streams/output.m3u8",
+                $"-hwaccel vaapi -hwaccel_output_format vaapi -i \"{_config.Cameras[0].URL}\" -c:v h264_vaapi -c:a aac -f hls -hls_time 4 -hls_segment_filename /home/johannescvh/SpiEyes/Streams/Segments/segment_%d.ts /home/johannescvh/SpiEyes/Streams/output.m3u8",
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             CreateNoWindow = true
         };
 
-        _ffmpegProcess = new Process { StartInfo = startInfo };
-        _ffmpegProcess.Start();
-        OutputStream = _ffmpegProcess.StandardOutput.BaseStream;
-        _running = true;
+        var process = new Process { StartInfo = startInfo };
+        process.Start();
+        var camera = new Camera();
+        camera.Name = _config.Cameras[0].Name;
+        camera.FFmpegProcess = process;
+        camera.OutputStream = process.StandardOutput.BaseStream;
+        Cameras.Add(camera);
 
-        _ = Task.Run(() => ReadErrorStream(_ffmpegProcess.StandardError));
+        foreach (Camera cam in Cameras)
+        {
+            _ = Task.Run(() => ReadErrorStream(cam));
+        }
     }
 
-    private void ReadErrorStream(StreamReader error)
+    private void ReadErrorStream(Camera cam)
     {
         string line;
-        while ((line = error.ReadLine()) != null)
+        while ((line = cam.FFmpegProcess.StandardError.ReadLine()) != null)
         {
             if (line.Contains("configuration:")) continue;
             if (!LOG_FRAMES && line.Contains("frame=")) continue;
             
-            Console.WriteLine("[FFmpeg]\t" + line);
+            Console.WriteLine($"[Camera: {cam.Name}] [FFmpeg]\t" + line);
         }
     }
 
-    public Stream GetStream() => OutputStream;
-
-    public void Stop()
+    public Task StopAsync(CancellationToken cancellationToken)
     {
-        _running = false;
-        try
+        if (Cameras != null)
         {
-            _ffmpegProcess.Kill();
-            _ffmpegProcess.WaitForExit(3000);
+            foreach(Camera cam in Cameras)
+            {
+                cam.FFmpegProcess.Kill();
+                cam.FFmpegProcess.WaitForExit(3000);
+                cam.FFmpegProcess.Dispose();
+            }
         }
-        catch
-        {
-            Console.WriteLine("Can't kill FFMpeg process.");
-        }
-    }
 
-    public void Dispose()
-    {
-        Stop();
-        _ffmpegProcess.Dispose();
+        return Task.CompletedTask;
     }
 }

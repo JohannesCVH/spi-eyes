@@ -1,21 +1,14 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
-using SpiEyes.Models;
-using SpiEyes.Services;
 
 namespace SpiEyes.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 public class StreamController : ControllerBase
-{
-    private readonly Config _config;
-    private readonly IFFmpegRtspReaderService _fFmpegRtspReaderService;
-    
-    public StreamController(IOptions<Config> configOptions, IFFmpegRtspReaderService fFmpegRtspReaderService)
+{   
+    public StreamController()
     {
-        _config = configOptions.Value;
-        _fFmpegRtspReaderService = fFmpegRtspReaderService;
+        
     }
 
     [HttpGet("Stream1")]
@@ -23,17 +16,20 @@ public class StreamController : ControllerBase
     {
         try
         {
-            Response.Headers.Add("Content-Type", "video/webm");
-            Response.Headers.Add("Cache-Control", "no-cache");
-
-            await _fFmpegRtspReaderService.StartAsync();
-
-            return new FileStreamResult(_fFmpegRtspReaderService.GetStream(), "video/webm");
+            var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "SpiEyes/Streams/output.m3u8");
+            return PhysicalFile(path, "application/x-mpegURL");
         }
         catch(Exception ex)
         {
             Console.WriteLine($"ERROR: {ex.Message}");
-            return new NoContentResult();
+            return StatusCode(StatusCodes.Status500InternalServerError, new { message= "An unexpected error occurred." });
         }
+    }
+
+    [HttpGet("{segmentId}.ts")]
+    public IActionResult GetStreamSegment(string segmentId)
+    {
+        var filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "SpiEyes/Streams/Segments", $"{segmentId}.ts");
+        return PhysicalFile(filePath, "video/MP2T");
     }
 }

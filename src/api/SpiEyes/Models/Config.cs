@@ -4,5 +4,5 @@ namespace SpiEyes.Models;
 
 public class Config
 {
-    public Camera[] Cameras { get; set; }
+    public CameraConfig[] Cameras { get; set; }
 }
