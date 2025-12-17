@@ -1,0 +1,6 @@
+{
+  "compilerOptions": {
+    "types": ["vue"],
+  },
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue"]
+}
