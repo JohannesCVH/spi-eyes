@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using SpiEyes.Services;
+using SpiEyes.Utility;
 
 namespace SpiEyes.Controllers;
 
@@ -6,17 +8,20 @@ namespace SpiEyes.Controllers;
 [Route("api/[controller]")]
 public class StreamController : ControllerBase
 {   
-    public StreamController()
+    public ISharedDataService _sharedDataService { get; set; }
+    private readonly FFmpegRtspReaderService _fFmpegRtspReaderService;
+    
+    public StreamController(ISharedDataService sharedDataService)
     {
-        
+        _sharedDataService = sharedDataService;
     }
 
-    [HttpGet("Stream1")]
-    public async Task<IActionResult> Stream()
+    [HttpGet("{cameraName}")]
+    public async Task<IActionResult> Stream(string cameraName)
     {
         try
         {
-            var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "SpiEyes/Streams/output.m3u8");
+            var path = PathUtils.CreateAppPath($"Streams/{cameraName}/output.m3u8");
             return PhysicalFile(path, "application/x-mpegURL");
         }
         catch(Exception ex)
@@ -26,10 +31,18 @@ public class StreamController : ControllerBase
         }
     }
 
-    [HttpGet("{segmentId}.ts")]
-    public IActionResult GetStreamSegment(string segmentId)
+    [HttpGet("{cameraName}/{segmentId}.ts")]
+    public IActionResult GetStreamSegment(string cameraName, string segmentId)
     {
-        var filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "SpiEyes/Streams/Segments", $"{segmentId}.ts");
+        var filePath = PathUtils.CreateAppPath($"Streams/{cameraName}/Segments/{segmentId}.ts");
         return PhysicalFile(filePath, "video/MP2T");
+    }
+
+    [HttpGet("Test")]
+    public IActionResult Test(CancellationToken cancellationToken)
+    {
+        _fFmpegRtspReaderService.StopAsync(cancellationToken);
+        
+        return Ok();
     }
 }

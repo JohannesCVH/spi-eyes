@@ -1,0 +1,18 @@
+using SpiEyes.Models;
+
+namespace SpiEyes.Services;
+
+public interface ISharedDataService
+{
+    public List<Camera> Cameras { get; set; }
+}
+
+public class SharedDataService : ISharedDataService
+{
+    public List<Camera> Cameras { get; set; }
+
+    public SharedDataService()
+    {
+        
+    }
+}
