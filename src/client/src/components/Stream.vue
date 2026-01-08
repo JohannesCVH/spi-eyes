@@ -28,13 +28,13 @@
             xhrSetup: function (xhr, url) {
                 if (url.endsWith('.ts')) {
                     const segmentFileName = url.split('/').pop();
-                    const newUrl = `http://localhost:5002/api/Stream/${props.cameraName}/${segmentFileName}`;
+                    const newUrl = `http://192.168.68.110:5002/api/Stream/${props.cameraName}/${segmentFileName}`;
                     xhr.open('GET', newUrl, true);
                 }
             }
         });
         
-        hls.loadSource(`http://localhost:5002/api/Stream/${props.cameraName}`)
+        hls.loadSource(`http://192.168.68.110:5002/api/Stream/${props.cameraName}`)
         hls.attachMedia(streamRef.value);
 
         hls.on(HLS.Events.MEDIA_ATTACHED, () => {

@@ -27,7 +27,7 @@
 
     const fetchStreams = async (): Promise<void> => {
         try {
-            const res = await axios.get<Camera[]>('http://localhost:5002/api/Dashboard/Streams');
+            const res = await axios.get<Camera[]>('http://192.168.68.110:5002/api/Dashboard/Streams');
             
             res.data.forEach(camera => {
                 camerasRef.value.push(new Camera(camera.name))
@@ -43,7 +43,7 @@
 
     const fetchThumbnail = async (cameraName: string): Promise<Blob> => {
         try {
-            const res = await axios.get<Blob>(`http://localhost:5002/api/Dashboard/GetThumbnail/${cameraName}`, {
+            const res = await axios.get<Blob>(`http://192.168.68.110:5002/api/Dashboard/GetThumbnail/${cameraName}`, {
                 responseType: 'blob'
             });
 
