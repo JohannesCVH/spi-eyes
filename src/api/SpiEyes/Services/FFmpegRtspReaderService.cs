@@ -73,6 +73,7 @@ public class FFmpegRtspReaderService : IHostedService
         foreach (Camera cam in Cameras)
         {
             _ = Task.Run(() => ReadErrorStream(cam));
+            _ = Task.Run(() => ReadErrorFrame(cam));
         }
     }
 
@@ -84,7 +85,19 @@ public class FFmpegRtspReaderService : IHostedService
             if (line.Contains("configuration:")) continue;
             if (!LOG_FRAMES && line.Contains("frame=")) continue;
             
-            Console.WriteLine($"[Camera: {cam.Name}] [FFmpeg]\t" + line);
+            Console.WriteLine($"[Camera: {cam.Name}] [Stream] [FFmpeg]\t" + line);
+        }
+    }
+
+    private void ReadErrorFrame(Camera cam)
+    {
+        string line;
+        while ((line = cam.FrameProc.StandardError.ReadLine()) != null)
+        {
+            if (line.Contains("configuration:")) continue;
+            if (!LOG_FRAMES && line.Contains("frame=")) continue;
+            
+            Console.WriteLine($"[Camera: {cam.Name}] [Frame] [FFmpeg]\t" + line);
         }
     }
 
