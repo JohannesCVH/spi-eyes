@@ -1,0 +1,51 @@
+h1,h2,h3,h4,h5,h6,label,span {
+    color: #dddddd;
+}
+
+a {
+    color: #fff;
+}
+
+.btn {
+    border-radius: 4px;
+    border: none;
+    color: #000;
+    padding: 4px 8px;
+}
+.btn-primary {
+    background-color: #ece5d8;
+}
+.btn-primary:hover {
+    background-color: #ccc3b1;
+    color: black;
+}
+.btn-primary:active, .btn-primary:disabled {
+    background-color: #626262 !important;
+}
+.btn-secondary {
+    background-color: #333;
+    color: #ece5d8;
+}
+.btn-secondary:hover {
+    background-color: #666;
+}
+
+.navbar {
+    background-color: #333;
+}
+
+.card {
+    background-color: #333;
+    border-radius: 4px;
+}
+.card > img {
+    border-radius: 4px 4px 0px 0px;
+}
+.card-title {
+    color: #ece5d8;
+}
+
+video {
+    border-radius: 4px;
+    box-shadow: 0 0 4px 1px #333;
+}

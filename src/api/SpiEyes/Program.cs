@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using SpiEyes.DAL;
 using SpiEyes.Models;
 using SpiEyes.Services;
 
@@ -19,13 +21,25 @@ internal class Program
         builder.Configuration.AddJsonFile(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "SpiEyes/config.json"), optional: false, reloadOnChange: true);
         builder.Services.Configure<Config>(builder.Configuration.GetSection("Configuration"));
 
+        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+        builder.Services.AddDbContext<DatabaseContext>(options => options.UseSqlite());
+        
         builder.Services.AddSingleton<ISharedDataService, SharedDataService>();
         builder.Services.AddHostedService<FFmpegRtspReaderService>();
 
         var app = builder.Build();
-
         app.MapControllers();
         app.UseCors("AllowAll");
+
+        using (var scope = app.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DatabaseContext>();
+            db.Database.EnsureDeleted();
+            db.Database.EnsureCreated();
+            db.Database.Migrate();
+            DbInitializer.Initialize(db);
+        }
+        
         app.Run();
     }
 }
