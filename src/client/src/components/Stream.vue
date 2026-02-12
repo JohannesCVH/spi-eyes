@@ -2,14 +2,13 @@
     <div class="container">
         <div class="row">
             <div class="col-12">
-                <video ref="streamRef" controls class="w-100"></video>
+                <video ref="streamRef" class="w-100" controls autoplay muted playsinline webkit-playsinline></video>
             </div>
         </div>
     </div>
 </template>
 
 <script lang="ts" setup>
-    import HLS from 'hls.js';
     import { onMounted, onUnmounted, ref } from 'vue';
 
     const props = defineProps({
@@ -19,45 +18,45 @@
     });
     
     const streamRef = ref(null);
-    let hls: HLS = null;
 
     onMounted(async () => {
-        if (HLS.isSupported()){console.log('HLS is supported.')}
-
-        hls = new HLS({
-            xhrSetup: function (xhr, url) {
-                if (url.endsWith('.ts')) {
-                    const segmentFileName = url.split('/').pop();
-                    const newUrl = `http://192.168.68.110:5002/api/Stream/${props.cameraName}/${segmentFileName}`;
-                    xhr.open('GET', newUrl, true);
-                }
-            }
-        });
-        
-        hls.loadSource(`http://192.168.68.110:5002/api/Stream/${props.cameraName}`)
-        hls.attachMedia(streamRef.value);
-
-        hls.on(HLS.Events.MEDIA_ATTACHED, () => {
-            console.log("HLS: Video element attached");
-        });
-
-        hls.on(HLS.Events.MANIFEST_PARSED, () => {
-            streamRef.value.play();
-        });
-
-        hls.on(HLS.Events.ERROR, (err) => {
-            console.error('HLS error: ', err);
-        });
+        await startStream();
     });
 
     onUnmounted(async () => {
-        if (hls) {
-            console.log('Destroying HLS instance..');
-            hls.detachMedia();
-            hls.destroy();
-            hls = null;
-        }
+        
     });
+
+    const startStream = async () => {
+        const rtcPeerConn = new RTCPeerConnection({
+            iceServers: []
+        });
+
+        rtcPeerConn.ontrack = (event) => {
+            if (streamRef.value) { streamRef.value.srcObject = event.streams[0]; };
+        };
+
+        rtcPeerConn.addTransceiver('video', { direction: 'recvonly' });
+        rtcPeerConn.addTransceiver('audio', { direction: 'recvonly' });
+
+        const offer = await rtcPeerConn.createOffer();
+        await rtcPeerConn.setLocalDescription(offer);
+
+        const offerRes = await fetch(`https://192.168.68.110:8889/${props.cameraName}/whep`, {
+            method: 'POST',
+            body: offer.sdp,
+            headers: { 'Content-Type': 'application/sdp' },
+            mode: 'cors'
+        });
+
+        if (!offerRes.ok) console.error('WHEP request failed.');
+
+        const answerSdp = await offerRes.text();
+        await rtcPeerConn.setRemoteDescription(new RTCSessionDescription({
+            type: 'answer',
+            sdp: answerSdp
+        })); 
+    };
 </script>
 
 <style scoped>

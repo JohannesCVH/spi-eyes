@@ -3,11 +3,14 @@ import App from './App.vue'
 import router from './router'
 import 'bootstrap/dist/css/bootstrap.min.css'
 import 'bootstrap';
+import './assets/main.css';
+
+const configRes = await fetch('/config.json');
+const config = await configRes.json();
 
 const app = createApp(App)
-
+app.provide('config', config);
 app.use(router)
-
 app.mount('#app')
 
 if ('serviceWorker' in navigator) {

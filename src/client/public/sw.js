@@ -20,3 +20,10 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// self.addEventListener('push', (event) => {
+//   let data;
+//   if (event.data) {
+//     data = event.data.json();
+//   }
+// })

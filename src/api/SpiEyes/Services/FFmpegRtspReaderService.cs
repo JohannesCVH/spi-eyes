@@ -24,33 +24,15 @@ public class FFmpegRtspReaderService : IHostedService
     {
         Cameras = new List<Camera>();
         
-        // foreach (CameraConfig cam in new CameraConfig[] {_config.Cameras.FirstOrDefault()})
         for (int i = 0; i < _config.Cameras.Length; i++)
         {
-            var camPath = PathUtils.CreateStreamsPath(_config.Cameras[i].Name);
-            
-            var streamStartInfo = new ProcessStartInfo
-            {
-                FileName = "ffmpeg",
-                Arguments =
-                    // $"-i \"{_config.Cameras[i].URL}\" -c:v h264 -c:a aac -hls_time 4 -hls_segment_filename /home/johannescvh/SpiEyes/Streams/Segments/segment_%d.ts /home/johannescvh/SpiEyes/Streams/output.m3u8",
-                    // $"-hwaccel cuda -hwaccel_output_format cuda -i \"{_config.Cameras[i].URL}\" -c:v h264_nvenc -c:a aac -f hls -hls_time 4 -hls_segment_filename {camPath}/Segments/segment_%d.ts {camPath}/output.m3u8",
-                    $"-hwaccel d3d11va -hwaccel_output_format d3d11 -i \"{_config.Cameras[i].URL}\" -c:v h264_nvenc -c:a aac -f hls -hls_time 4 -hls_segment_filename {camPath}/Segments/segment_%d.ts {camPath}/output.m3u8",
-                    // $"-hwaccel d3d11va -i \"{_config.Cameras[i].URL}\" -c:v libx264 -c:a aac -f hls -hls_time 4 -hls_segment_filename {camPath}/Segments/segment_%d.ts {camPath}/output.m3u8",
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            };
-
-            var streamProc = new Process { StartInfo = streamStartInfo };
-            streamProc.Start();
-
+            var streamsPath = PathUtils.CreateStreamsPath();
+        
             var frameStartInfo = new ProcessStartInfo
             {
                 FileName = "ffmpeg",
                 Arguments =
-                    $"-i \"{_config.Cameras[i].URL}\" -vf fps=1 {camPath}/Frames/frame_%04d.jpg",
+                    $"-rtsp_transport tcp -fflags nobuffer -flags low_delay -i \"{_config.Cameras[i].URL}\" -vf fps=1 {streamsPath}/{_config.Cameras[i].Name}/Frames/frame_%04d.jpg",
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -60,11 +42,29 @@ public class FFmpegRtspReaderService : IHostedService
             var frameProc = new Process { StartInfo = frameStartInfo };
             frameProc.Start();
 
+            using var client = new HttpClient();
+            var apiUrl = $"http://localhost:9997/v3/config/paths/add/{_config.Cameras[i].Name}";
+
+            var config = new
+            {
+                source = _config.Cameras[i].URL,
+                sourceOnDemand = false,
+                rtspTransport = "tcp",
+                record = true,
+                recordFormat = "fmp4",
+                recordPath = $"{streamsPath}/%path/Recordings/%Y-%m-%d_%H-%M-%S-%f",
+                recordSegmentDuration = "1m",
+                recordPartDuration = "1s"
+            };
+
             var camera = new Camera();
+
+            var response = await client.PostAsJsonAsync(apiUrl, config);
+            if (response.IsSuccessStatusCode)
+                Console.WriteLine($"ERROR: Camera [{_config.Cameras[i].Name}] | Couldn't push camera to MediaMTX.");
+
             camera.Name = _config.Cameras[i].Name;
-            camera.StreamProc = streamProc;
             camera.FrameProc = frameProc;
-            camera.OutputStream = streamProc.StandardOutput.BaseStream;
             Cameras.Add(camera);
         }
 
@@ -72,20 +72,7 @@ public class FFmpegRtspReaderService : IHostedService
 
         foreach (Camera cam in Cameras)
         {
-            _ = Task.Run(() => ReadErrorStream(cam));
             _ = Task.Run(() => ReadErrorFrame(cam));
-        }
-    }
-
-    private void ReadErrorStream(Camera cam)
-    {
-        string line;
-        while ((line = cam.StreamProc.StandardError.ReadLine()) != null)
-        {
-            if (line.Contains("configuration:")) continue;
-            if (!LOG_FRAMES && line.Contains("frame=")) continue;
-            
-            Console.WriteLine($"[Camera: {cam.Name}] [Stream] [FFmpeg]\t" + line);
         }
     }
 

@@ -2,11 +2,11 @@
     <div class="container">
         <div class="row">
             <div v-if="camerasRef.length" v-for="camera in camerasRef" class="col-12 col-md-6">
-                <div class="card clickable-card" @click="navToStream(camera.name)">
+                <div class="card clickable-card mb-2" @click="navToStream(camera.name)">
                     <img v-if="camera.thumbnailUrl" :src="camera.thumbnailUrl" />
                     <span v-else>Loading thumbnail..</span>
                     <div class="card-body">
-                        <h5 class="card-title">{{ camera.name }}</h5>
+                        <h5 class="card-title text-center">{{ camera.name }}</h5>
                     </div>
                 </div>
             </div>
@@ -27,7 +27,7 @@
 
     const fetchStreams = async (): Promise<void> => {
         try {
-            const res = await axios.get<Camera[]>('http://192.168.68.110:5002/api/Dashboard/Streams');
+            const res = await axios.get<Camera[]>('https://192.168.68.110:5001/api/Dashboard/Streams');
             
             res.data.forEach(camera => {
                 camerasRef.value.push(new Camera(camera.name))
@@ -43,7 +43,7 @@
 
     const fetchThumbnail = async (cameraName: string): Promise<Blob> => {
         try {
-            const res = await axios.get<Blob>(`http://192.168.68.110:5002/api/Dashboard/GetThumbnail/${cameraName}`, {
+            const res = await axios.get<Blob>(`https://192.168.68.110:5001/api/Dashboard/GetThumbnail/${cameraName}`, {
                 responseType: 'blob'
             });
 
